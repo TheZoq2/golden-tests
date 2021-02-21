@@ -63,14 +63,11 @@
 
 pub mod config;
 pub mod error;
-mod diff_printer;
 
 pub use config::TestConfig;
 pub use error::TestError;
-use diff_printer::DiffPrinter;
 
 use colored::Colorize;
-use difference::Changeset;
 use shlex;
 
 use std::fs::File;
@@ -185,17 +182,27 @@ fn parse_test(test_path: &PathBuf, config: &TestConfig) -> TestResult<Test> {
 /// Diff the given "stream" and expected contents of the stream.
 /// Returns non-zero on error.
 fn check_for_differences_in_stream(name: &str, path: &Path, stream: &[u8], expected: &str) -> i8 {
-    let output_string = String::from_utf8_lossy(stream).replace("\r", "");
+    let output_string = String::from_utf8_lossy(&stream).replace("\r", "");
     let output = output_string.trim();
     let expected = expected.trim();
 
-    let differences = Changeset::new(expected, output, "\n");
-    let distance = differences.distance;
-    if distance != 0 {
-        println!("\n{}: Actual {} differs from expected {}:\n{}",
-            path.to_string_lossy().bright_yellow(), name, name, DiffPrinter(differences));
+    if output != expected {
+        println!("\n{}: Actual {} differs from expected {}:\n", path.to_string_lossy().bright_yellow(), name, name);
+        println!("{}:\n{}", "got".red(), output);
+        println!("{}", "==============================================".red());
+        println!("{}:\n{}", "expected".green(), expected);
+        println!(
+            "{}",
+            "==============================================".green()
+        );
+        println!("{}", prettydiff::diff_chars(output, expected));
+        println!(
+            "{}",
+            "==============================================".yellow()
+        );
         1
-    } else {
+    }
+    else {
         0
     }
 }
